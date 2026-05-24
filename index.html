@@ -386,14 +386,13 @@
             cursor: grab;
             box-shadow: 0 4px 10px var(--shadow);
             transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.3s ease;
-            touch-action: none; /* Crucial para o funcionamento perfeito do touch no mobile */
+            touch-action: none;
             user-select: none;
         }
         .task-card:active { cursor: grabbing; }
         .task-card.dragging { opacity: 0.3; transform: scale(0.96); }
         .task-card.filtered-out { display: none; }
 
-        /* Estilo do card clonado flutuante no celular */
         .task-card.touch-cloned {
             position: fixed !important;
             z-index: 10000 !important;
@@ -498,6 +497,102 @@
             text-align: center; color: var(--text-muted); font-size: 14px; margin-top: 40px;
         }
 
+        /* Botão Flutuante de Feedback */
+        .feedback-trigger-btn {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background: linear-gradient(135deg, var(--color-ciano) 0%, #00a8ff 100%);
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 240, 255, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 4000;
+            transition: var(--transition);
+        }
+        .feedback-trigger-btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(0, 240, 255, 0.6);
+        }
+
+        /* Painel/Janela de Feedback */
+        .feedback-modal {
+            position: fixed;
+            bottom: 85px;
+            right: 25px;
+            width: 320px;
+            background: var(--bg-canvas);
+            border: 2px solid var(--color-ciano);
+            border-radius: var(--radius);
+            box-shadow: 0 10px 30px var(--shadow);
+            z-index: 4000;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+            pointer-events: none;
+            transition: var(--transition);
+        }
+        .feedback-modal.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+        .feedback-header {
+            background: var(--bg-card);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+        }
+        .feedback-header h3 { font-size: 14px; color: var(--color-ciano); font-weight: 700; }
+        .feedback-header button {
+            background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px;
+        }
+        .feedback-header button:hover { color: var(--color-vermelho); }
+
+        .feedback-body { padding: 15px; }
+        .feedback-body form { display: flex; flex-direction: column; gap: 12px; }
+        .feedback-body label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+        
+        .feedback-body input, .feedback-body textarea {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            color: var(--text-light);
+            font-size: 13px;
+            outline: none;
+            transition: var(--transition);
+        }
+        .feedback-body input:focus, .feedback-body textarea:focus { border-color: var(--color-ciano); }
+        .feedback-body textarea { resize: none; height: 80px; }
+
+        .feedback-body button[type="submit"] {
+            background: var(--color-ciano);
+            color: #000;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+            transition: var(--transition);
+        }
+        .feedback-body button[type="submit"]:hover { background: #00e0ef; transform: translateY(-1px); }
+
         /* Rodapé Estilizado */
         footer {
             display: flex;
@@ -505,6 +600,7 @@
             padding: 18px;
             background: var(--bg-card);
             border-top: 1px solid var(--border-color);
+            margin-bottom: 0;
         }
         .team-badge {
             font-size: 11px;
@@ -576,6 +672,9 @@
             .task-form { flex-direction: column; max-width: 100%; }
             .filter-group { justify-content: center; width: 100%; }
             .filter-btn { flex: 1; text-align: center; }
+            .feedback-trigger-btn { bottom: 15px; right: 15px; padding: 10px 16px; font-size: 12px; }
+            .feedback-modal { bottom: 70px; right: 15px; width: calc(100% - 30px); }
+            footer { padding-bottom: 80px; } /* Abre espaço para o botão flutuante no mobile */
         }
     </style>
 </head>
@@ -671,6 +770,30 @@
         </div>
     </div>
 
+    <!-- Interface Dinâmica de Feedback -->
+    <button class="feedback-trigger-btn" id="openFeedbackBtn">💬 Feedback</button>
+    
+    <div class="feedback-modal" id="feedbackModal">
+        <div class="feedback-header">
+            <h3>Enviar Opinião</h3>
+            <button id="closeFeedbackBtn">✕</button>
+        </div>
+        <div class="feedback-body">
+            <!-- Form modificado para interceptação dinâmica via JS via protocolo mailto: -->
+            <form id="feedbackForm">
+                <div>
+                    <label for="feedbackName">Seu Nome</label>
+                    <input type="text" id="feedbackName" required placeholder="Digite seu nome...">
+                </div>
+                <div>
+                    <label for="feedbackText">O que achou ou pode melhorar?</label>
+                    <textarea id="feedbackText" required placeholder="Escreva sua opinião ou sugestão aqui..."></textarea>
+                </div>
+                <button type="submit">Enviar Sugestão</button>
+            </form>
+        </div>
+    </div>
+
     <footer>
         <div class="team-badge">
             ADRIAN <span class="footer-divider">|</span> ESTELITA <span class="footer-divider">|</span> RAIMUNDO <span class="footer-divider">|</span> FABIO <span class="footer-divider">|</span> RAFAELLA 
@@ -705,7 +828,6 @@
         const LIMITE_PRODUCAO = 4;
         let filtroAtivo = 'todos';
 
-        // Variáveis globais para rastreamento de Touch (Mobile)
         let cardClonadoMobile = null;
         let cardOriginalMobile = null;
         let containerOrigemMobile = null;
@@ -730,6 +852,14 @@
         const listaHistorico = document.getElementById('historyList');
         const contadorHistoricoBadge = document.getElementById('historyCount');
         const botaoArquivarConcluidas = document.getElementById('archiveDoneBtn');
+
+        // Elementos de Feedback
+        const painelFeedback = document.getElementById('feedbackModal');
+        const botaoAbrirFeedback = document.getElementById('openFeedbackBtn');
+        const botaoFecharFeedback = document.getElementById('closeFeedbackBtn');
+        const campoNomeFeedback = document.getElementById('feedbackName');
+        const campoTextoFeedback = document.getElementById('feedbackText');
+        const formularioFeedback = document.getElementById('feedbackForm');
 
         function inicializarTema() {
             document.body.setAttribute('data-theme', bdLocal.tema);
@@ -829,7 +959,6 @@
                 </div>
             `;
 
-            // EVENTOS DESKTOP (Mouse)
             card.addEventListener('dragstart', () => { setTimeout(() => card.classList.add('dragging'), 0); });
             card.addEventListener('dragend', () => { card.classList.remove('dragging'); });
             card.querySelector('.btn-delete').addEventListener('click', (e) => {
@@ -837,16 +966,13 @@
                 excluirTarefa(tarefa.id);
             });
 
-            // EVENTOS MOBILE (Toque de tela)
             card.addEventListener('touchstart', (e) => {
-                // Impede o disparo duplo caso toque no botão de deletar
                 if (e.target.classList.contains('btn-delete')) return;
 
                 cardOriginalMobile = card;
                 containerOrigemMobile = card.closest('.cards-container');
                 cardOriginalMobile.classList.add('dragging');
 
-                // Cria um clone perfeito para seguir o dedo pela tela
                 cardClonadoMobile = card.cloneNode(true);
                 cardClonadoMobile.classList.add('touch-cloned');
                 document.body.appendChild(cardClonadoMobile);
@@ -856,13 +982,10 @@
 
             card.addEventListener('touchmove', (e) => {
                 if (!cardClonadoMobile) return;
-                
-                // Impede a tela de rolar enquanto arrasta o item no mobile
                 if (e.cancelable) e.preventDefault();
                 
                 posicionarCardCloneTouch(e.touches[0]);
 
-                // Feedback visual de dragover nas colunas no mobile
                 const elementoSobODedo = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
                 const containerAlvoMobile = elementoSobODedo ? elementoSobODedo.closest('.cards-container') : null;
 
@@ -879,7 +1002,6 @@
                 const elementoSobODedo = document.elementFromPoint(toqueFinal.clientX, toqueFinal.clientY);
                 const containerAlvoMobile = elementoSobODedo ? elementoSobODedo.closest('.cards-container') : null;
 
-                // Limpa os estados visuais temporários
                 document.querySelectorAll('.kanban-column').forEach(col => col.classList.remove('drag-over'));
                 cardClonadoMobile.remove();
                 cardClonadoMobile = null;
@@ -890,7 +1012,7 @@
                     const novoStatus = containerAlvoMobile.getAttribute('data-status');
                     processarMudancaStatus(idTarefa, novoStatus);
                 } else {
-                    renderizarQuadro(); // Reseta caso solte fora de um container válido
+                    renderizarQuadro();
                 }
             });
 
@@ -899,7 +1021,6 @@
 
         function posicionarCardCloneTouch(toque) {
             if (!cardClonadoMobile) return;
-            // Centraliza o clone ligeiramente acima do dedo do usuário para não tampar a visão
             cardClonadoMobile.style.left = `${toque.clientX - 140}px`;
             cardClonadoMobile.style.top = `${toque.clientY - 40}px`;
         }
@@ -908,14 +1029,12 @@
             const tarefaOriginal = bdLocal.tarefas.find(t => t.id === idTarefa);
             if (!tarefaOriginal) return;
 
-            // TRAVA DE SEGURANÇA: Bloqueia mover de 'A Fazer' direto para 'Finalizado'
             if (tarefaOriginal.status === 'backlog' && novoStatus === 'finalizado') {
                 alert('⚠️ Fluxo incorreto! Você não pode pular etapas. A tarefa deve passar primeiro por "Em Produção".');
                 renderizarQuadro();
                 return;
             }
 
-            // Validação de Limite da coluna Produção
             if (novoStatus === 'producao' && tarefaOriginal.status !== 'producao') {
                 const totalProducao = bdLocal.tarefas.filter(t => t.status === 'producao').length;
                 if (totalProducao >= LIMITE_PRODUCAO) {
@@ -925,10 +1044,8 @@
                 }
             }
 
-            // Atualiza e salva as modificações
             tarefaOriginal.status = novoStatus;
             salvarEAtualizar();
-            
             setTimeout(renderizarQuadro, 50);
         }
 
@@ -970,8 +1087,47 @@
             });
         }
 
-        botaoAbrirHistorico.addEventListener('click', () => painelHistorico.classList.add('open'));
+        // Lógica de abertura das gavetas laterais / modais
+        botaoAbrirHistorico.addEventListener('click', () => {
+            painelFeedback.classList.remove('open');
+            painelHistorico.classList.add('open');
+        });
         botaoFecharHistorico.addEventListener('click', () => painelHistorico.classList.remove('open'));
+
+        // Lógica do Painel de Feedback
+        botaoAbrirFeedback.addEventListener('click', () => {
+            painelHistorico.classList.remove('open');
+            painelFeedback.classList.toggle('open');
+            if (painelFeedback.classList.contains('open') && bdLocal.usuario) {
+                campoNomeFeedback.value = bdLocal.usuario; // Auto-preenche com o nome do usuário logado
+            }
+        });
+        botaoFecharFeedback.addEventListener('click', () => painelFeedback.classList.remove('open'));
+
+        // INTERCEPTAÇÃO DO FEEDBACK VIA MAILTO NATIVO (Direto para o e-mail sem precisar de DB)
+        formularioFeedback.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const destinatario = "adrianpantoja20@outlook.com";
+            const nomeUsuario = campoNomeFeedback.value.trim();
+            const textoFeedback = campoTextoFeedback.value.trim();
+            
+            const assunto = encodeURIComponent(`[Gideon Feedback] - Opinião de ${nomeUsuario}`);
+            const corpoEmail = encodeURIComponent(
+                `Olá Adrian,\n\nVocê recebeu um novo feedback sobre a ferramenta Gideon Kanban!\n\n` +
+                `• Autor: ${nomeUsuario}\n` +
+                `• Opinião/Sugestão de Melhoria:\n"${textoFeedback}"\n\n` +
+                `Enviado direto do Painel de Controle.`
+            );
+            
+            // Monta o link mailto dinâmico e simula o clique do usuário
+            window.location.href = `mailto:${destinatario}?subject=${assunto}&body=${corpoEmail}`;
+            
+            // Mensagem de sucesso na tela e limpa campos
+            alert('Perfeito! Seu aplicativo de e-mail padrão será aberto para confirmar o envio da opinião para o Adrian.');
+            campoTextoFeedback.value = '';
+            painelFeedback.classList.remove('open');
+        });
 
         botaoArquivarConcluidas.addEventListener('click', () => {
             const concluidas = bdLocal.tarefas.filter(t => t.status === 'finalizado');
@@ -1010,7 +1166,6 @@
             entradaTarefa.focus();
         });
 
-        // Configuração nativa de Desktop para Drag and Drop
         colunasContainers.forEach(container => {
             const colunaPai = container.closest('.kanban-column');
 
