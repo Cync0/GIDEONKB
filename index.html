@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gideon - Sistema Kanban & Histórico</title>
+    <style>
+        :root {
+            /* Paleta Padrão Escura (Noite) */
+            --bg-body: #0b0c10;
+            --bg-canvas: #1f2833;
+            --text-light: #ffffff;
+            --text-muted: #a3a3a3;
+            --bg-card: #151a22;
+            --border-color: #2d3748;
+            --input-bg: #252e3b;
+            --input-border: #3d4a5e;
+            --shadow: rgba(0, 0, 0, 0.5);
+            
+            /* Paleta Estrita */
+            --color-amarelo: #ffdf00;
+            --color-laranja: #ff7700;
+            --color-vermelho: #ff3333;
+            --color-roxo: #a020f0;
+            --color-verde: #00ff87;
+            --color-ciano: #00f0ff;
+            
+            --radius: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Modo Claro (Dia) */
+        [data-theme="light"] {
+            --bg-body: #f4f6f9;
+            --bg-canvas: #ffffff;
+            --text-light: #1a202c;
+            --text-muted: #718096;
+            --bg-card: #edf2f7;
+            --border-color: #e2e8f0;
+            --input-bg: #ffffff;
+            --input-border: #cbd5e0;
+            --shadow: rgba(0, 0, 0, 0.1);
+            
+            --color-amarelo: #b38600;
+            --color-laranja: #dd5500;
+            --color-vermelho: #cc1111;
+            --color-roxo: #7b1fa2;
+            --color-verde: #008a47;
+            --color-ciano: #007799;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Cabeçalho */
+        header {
+            background: linear-gradient(135deg, var(--bg-canvas) 0%, var(--bg-card) 100%);
+            padding: 20px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border-bottom: 2px solid var(--border-color);
+            box-shadow: 0 4px 20px var(--shadow);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo h1 {
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(to right, var(--color-amarelo), var(--color-laranja), var(--color-vermelho));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-greeting {
+            font-size: 14px;
+            color: var(--text-light);
+            font-weight: 500;
+            background: rgba(128, 128, 128, 0.1);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .user-greeting:hover { border-color: var(--color-amarelo); }
+
+        .theme-toggle-btn {
+            background: rgba(128, 128, 128, 0.1);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: var(--transition);
+        }
+        .theme-toggle-btn:hover { transform: scale(1.1); border-color: var(--color-roxo); }
+
+        /* Botão do Histórico */
+        .history-trigger-btn {
+            background: rgba(128, 128, 128, 0.1);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+            position: relative;
+        }
+        .history-trigger-btn:hover {
+            border-color: var(--color-ciano);
+            background: rgba(0, 240, 255, 0.05);
+        }
+        .history-badge-count {
+            background: var(--color-ciano);
+            color: #000;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        /* Barra de Progresso */
+        .progress-container {
+            width: 100%;
+            background: var(--bg-body);
+            height: 6px;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid var(--border-color);
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to right, var(--color-roxo), var(--color-verde));
+            transition: width 0.5s ease;
+        }
+
+        /* Controles / Formulário */
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .task-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            flex: 1;
+            max-width: 700px;
+        }
+
+        .task-form input {
+            background: var(--input-bg);
+            border: 2px solid var(--color-amarelo);
+            padding: 10px 16px;
+            border-radius: var(--radius);
+            color: var(--text-light);
+            font-size: 14px;
+            outline: none;
+            transition: var(--transition);
+            flex: 2;
+            min-width: 200px;
+        }
+
+        .task-form select {
+            background: var(--input-bg);
+            border: 2px solid var(--border-color);
+            padding: 10px;
+            border-radius: var(--radius);
+            color: var(--text-light);
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+            transition: var(--transition);
+            flex: 1;
+        }
+        .task-form select:focus { border-color: var(--color-ciano); }
+
+        .task-form button {
+            background: linear-gradient(135deg, var(--color-roxo) 0%, #7b1fa2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 4px 15px rgba(160, 32, 240, 0.3);
+            transition: var(--transition);
+        }
+        .task-form button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(160, 32, 240, 0.5);
+        }
+
+        /* Filtros por Urgência */
+        .filter-group {
+            display: flex;
+            gap: 8px;
+            background: var(--bg-body);
+            padding: 4px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+        }
+
+        .filter-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .filter-btn.active {
+            background: var(--input-bg);
+            color: var(--text-light);
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+        .filter-btn[data-filter="todos"].active { color: var(--color-ciano); }
+        .filter-btn[data-filter="baixa"].active { color: var(--color-verde); }
+        .filter-btn[data-filter="media"].active { color: var(--color-amarelo); }
+        .filter-btn[data-filter="urgente"].active { color: var(--color-vermelho); }
+
+        /* Área do Quadro */
+        .kanban-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            padding: 30px;
+            align-items: start;
+            overflow-x: auto;
+        }
+
+        .kanban-column {
+            background-color: var(--bg-canvas);
+            border-radius: var(--radius);
+            padding: 20px;
+            min-height: 55vh;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border-top: 5px solid var(--column-color);
+            box-shadow: 0 10px 30px var(--shadow);
+            transition: var(--transition);
+        }
+
+        .kanban-column.drag-over { background-color: var(--bg-card); transform: scale(1.01); }
+
+        .kanban-column.limit-exceeded {
+            border-top-color: var(--color-vermelho) !important;
+            animation: piscarAlerta 0.5s ease infinite alternate;
+        }
+
+        @keyframes piscarAlerta {
+            0% { box-shadow: 0 10px 30px var(--shadow); }
+            100% { box-shadow: 0 0 20px rgba(255, 51, 51, 0.4); }
+        }
+
+        #col-backlog { --column-color: var(--color-amarelo); }
+        #col-producao { --column-color: var(--color-laranja); }
+        #col-finalizado { --column-color: var(--color-verde); }
+
+        .column-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .column-header h2 {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--column-color);
+        }
+
+        .column-header-right { display: flex; align-items: center; gap: 6px; }
+
+        .wip-limit-badge {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: var(--bg-body);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .task-count {
+            background-color: var(--bg-body);
+            color: var(--text-light);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Botão para Arquivar e Limpar Coluna */
+        .btn-archive-column {
+            background: rgba(0, 255, 135, 0.1);
+            border: 1px dashed var(--color-verde);
+            color: var(--color-verde);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            text-transform: uppercase;
+        }
+        .btn-archive-column:hover {
+            background: var(--color-verde);
+            color: #000;
+        }
+
+        /* Cards */
+        .cards-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 150px;
+        }
+
+        .task-card {
+            background-color: var(--bg-card);
+            border-radius: 8px;
+            padding: 16px;
+            border-left: 5px solid var(--urgency-color);
+            cursor: grab;
+            box-shadow: 0 4px 10px var(--shadow);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.3s ease;
+        }
+        .task-card:active { cursor: grabbing; }
+        .task-card.dragging { opacity: 0.3; transform: scale(0.96); }
+        .task-card.filtered-out { display: none; }
+
+        .task-card h3 {
+            font-size: 15px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            font-weight: 600;
+            word-wrap: break-word;
+        }
+
+        .task-card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+        }
+
+        .urgency-badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+            background-color: rgba(0, 0, 0, 0.2);
+            color: var(--urgency-color);
+            letter-spacing: 0.5px;
+        }
+
+        .btn-delete {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 14px;
+            transition: var(--transition);
+        }
+        .btn-delete:hover { color: var(--color-vermelho); transform: scale(1.1); }
+
+        /* Painel Lateral do Histórico (Drawer) */
+        .history-drawer {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100%;
+            background: var(--bg-canvas);
+            border-left: 2px solid var(--border-color);
+            box-shadow: -10px 0 40px var(--shadow);
+            z-index: 5000;
+            display: flex;
+            flex-direction: column;
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .history-drawer.open { right: 0; }
+
+        .history-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-card);
+        }
+        .history-header h2 { font-size: 18px; color: var(--color-ciano); }
+        .btn-close-history {
+            background: transparent; border: none; color: var(--text-light);
+            font-size: 20px; cursor: pointer; transition: var(--transition);
+        }
+        .btn-close-history:hover { color: var(--color-vermelho); }
+
+        .history-list {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 12px 16px;
+            border-left: 4px solid var(--urgency-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .history-item-info h4 { font-size: 14px; font-weight: 600; color: var(--text-light); margin-bottom: 4px; }
+        .history-item-info span { font-size: 10px; font-weight: 700; text-transform: uppercase; }
+
+        .history-empty-state {
+            text-align: center; color: var(--text-muted); font-size: 14px; margin-top: 40px;
+        }
+
+        /* Rodapé Estilizado */
+        footer {
+            display: flex;
+            justify-content: center;
+            padding: 18px;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+        }
+        .team-badge {
+            font-size: 11px;
+            letter-spacing: 0.8px;
+            font-weight: 600;
+            color: var(--text-muted);
+            background: var(--bg-body);
+            padding: 10px 20px;
+            border-radius: 30px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+            max-width: 95%;
+            line-height: 1.6;
+        }
+        .team-badge strong { color: var(--color-laranja); }
+        .footer-divider { color: var(--border-color); margin: 0 8px; font-weight: 300; }
+        .footer-highlight { color: var(--color-ciano); }
+
+        /* Modal de Nome */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal.active { opacity: 1; pointer-events: auto; }
+        .modal-content {
+            background: var(--bg-canvas);
+            padding: 30px;
+            border-radius: var(--radius);
+            border: 2px solid var(--color-roxo);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(160, 32, 240, 0.3);
+        }
+        .modal-content h2 { margin-bottom: 15px; font-size: 20px; color: var(--text-light); }
+        .modal-content p { color: var(--text-muted); margin-bottom: 15px; font-size: 14px; }
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-body);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-light);
+            margin-bottom: 20px;
+            outline: none;
+            text-align: center;
+            font-size: 16px;
+        }
+        .modal-content button {
+            background: var(--color-roxo);
+            color: #fff; border: none; padding: 10px 24px;
+            border-radius: 8px; cursor: pointer; font-weight: 600;
+            width: 100%; transition: var(--transition);
+        }
+
+        @media (max-width: 1024px) {
+            .kanban-container { grid-template-columns: 1fr; }
+            .controls-row { flex-direction: column; align-items: stretch; }
+            .history-drawer { width: 100%; right: -100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-top">
+            <div class="logo-area">
+                <div class="logo">
+                    <h1>GIDEON</h1>
+                </div>
+                <button class="theme-toggle-btn" id="themeToggle" title="Alternar modo Claro/Escuro">🌙</button>
+            </div>
+            
+            <div class="header-actions">
+                <button class="history-trigger-btn" id="openHistoryBtn">
+                    📜 Histórico <span class="history-badge-count" id="historyCount">0</span>
+                </button>
+                <div class="user-greeting" id="userGreeting" title="Clique para alterar seu nome">
+                    Olá! Carregando...
+                </div>
+            </div>
+        </div>
+
+        <div class="progress-container" title="Progresso de tarefas finalizadas">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <div class="controls-row">
+            <form class="task-form" id="taskForm">
+                <input type="text" id="taskInput" placeholder="Nova tarefa..." required maxLength="100">
+                
+                <select id="taskUrgency" title="Selecione o nível de urgência">
+                    <option value="baixa">🟢 Baixa</option>
+                    <option value="media" selected>🟡 Média</option>
+                    <option value="urgente">🔴 Urgente</option>
+                </select>
+                
+                <button type="submit">+ Adicionar</button>
+            </form>
+
+            <div class="filter-group">
+                <button class="filter-btn active" data-filter="todos">Todos</button>
+                <button class="filter-btn" data-filter="baixa">Baixa</button>
+                <button class="filter-btn" data-filter="media">Média</button>
+                <button class="filter-btn" data-filter="urgente">Urgente</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="kanban-container">
+        <div class="kanban-column" id="col-backlog">
+            <div class="column-header">
+                <h2>A Fazer</h2>
+                <div class="column-header-right">
+                    <span class="task-count" id="count-backlog">0</span>
+                </div>
+            </div>
+            <div class="cards-container" data-status="backlog"></div>
+        </div>
+
+        <div class="kanban-column" id="col-producao">
+            <div class="column-header">
+                <h2>Em Produção</h2>
+                <div class="column-header-right">
+                    <span class="wip-limit-badge">Limite: 4</span>
+                    <span class="task-count" id="count-producao">0</span>
+                </div>
+            </div>
+            <div class="cards-container" data-status="producao"></div>
+        </div>
+
+        <div class="kanban-column" id="col-finalizado">
+            <div class="column-header">
+                <h2>Finalizado</h2>
+                <div class="column-header-right">
+                    <button class="btn-archive-column" id="archiveDoneBtn" title="Mover tarefas concluídas para o histórico">Limpar e Arquivar</button>
+                    <span class="task-count" id="count-finalizado">0</span>
+                </div>
+            </div>
+            <div class="cards-container" data-status="finalizado"></div>
+        </div>
+    </main>
+
+    <!-- Painel Lateral de Histórico -->
+    <div class="history-drawer" id="historyDrawer">
+        <div class="history-header">
+            <h2>Histórico de Tarefas</h2>
+            <button class="btn-close-history" id="closeHistoryBtn">✕</button>
+        </div>
+        <div class="history-list" id="historyList">
+            <!-- Inserido dinamicamente via JS -->
+        </div>
+    </div>
+
+    <footer>
+        <div class="team-badge">
+            ADRIAN <span class="footer-divider">|</span> ESTELITA <span class="footer-divider">|</span> RAIMUNDO <span class="footer-divider">|</span> FABIO <span class="footer-divider">|</span> RAFAELLA 
+            <span class="footer-divider">|</span> <strong>TÉC. INFORMÁTICA 2026</strong> <span class="footer-divider">|</span> EETEPA VILHENA ALVES
+            <br>
+            <span class="footer-highlight">GESTÃO APLICADA</span> — PROF. ALBERTO GAMA
+        </div>
+    </footer>
+
+    <div class="modal" id="nameModal">
+        <div class="modal-content">
+            <h2>Bem-vindo ao Gideon</h2>
+            <p>Identifique-se para começar:</p>
+            <input type="text" id="nameInput" placeholder="Seu nome..." maxLength="20">
+            <button id="saveNameBtn">Acessar Painel</button>
+        </div>
+    </div>
+
+    <script>
+        const bdLocal = {
+            tarefas: JSON.parse(localStorage.getItem('gideon_kanban_tarefas')) || [],
+            usuario: localStorage.getItem('gideon_kanban_usuario') || '',
+            tema: localStorage.getItem('gideon_kanban_tema') || 'dark'
+        };
+
+        const coresUrgencia = { 
+            baixa: 'var(--color-verde)',      
+            media: 'var(--color-amarelo)',  
+            urgente: 'var(--color-vermelho)'    
+        };
+
+        const LIMITE_PRODUCAO = 4;
+        let filtroAtivo = 'todos';
+
+        const formulario = document.getElementById('taskForm');
+        const entradaTarefa = document.getElementById('taskInput');
+        const seletorUrgencia = document.getElementById('taskUrgency');
+        const colunasContainers = document.querySelectorAll('.cards-container');
+        const elementoSaudacao = document.getElementById('userGreeting');
+        const barraProgresso = document.getElementById('progressBar');
+        const modalNome = document.getElementById('nameModal');
+        const entradaNomeModal = document.getElementById('nameInput');
+        const botaoSalvarNome = document.getElementById('saveNameBtn');
+        const botoesFiltro = document.querySelectorAll('.filter-btn');
+        const colunaProducaoElemento = document.getElementById('col-producao');
+        const botaoTema = document.getElementById('themeToggle');
+        
+        // Elementos do Histórico
+        const painelHistorico = document.getElementById('historyDrawer');
+        const botaoAbrirHistorico = document.getElementById('openHistoryBtn');
+        const botaoFecharHistorico = document.getElementById('closeHistoryBtn');
+        const listaHistorico = document.getElementById('historyList');
+        const contadorHistoricoBadge = document.getElementById('historyCount');
+        const botaoArquivarConcluidas = document.getElementById('archiveDoneBtn');
+
+        function inicializarTema() {
+            document.body.setAttribute('data-theme', bdLocal.tema);
+            botaoTema.textContent = bdLocal.tema === 'dark' ? '🌙' : '☀️';
+        }
+
+        botaoTema.addEventListener('click', () => {
+            const novoTema = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', novoTema);
+            bdLocal.tema = novoTema;
+            localStorage.setItem('gideon_kanban_tema', novoTema);
+            botaoTema.textContent = novoTema === 'dark' ? '🌙' : '☀️';
+        });
+
+        function gerenciarPerfil() {
+            if (!bdLocal.usuario) {
+                modalNome.classList.add('active');
+                entradaNomeModal.focus();
+            } else {
+                atualizarSaudacao();
+            }
+        }
+
+        function salvarNomeUsuario() {
+            const nome = entradaNomeModal.value.trim();
+            if (nome) {
+                bdLocal.usuario = nome;
+                localStorage.setItem('gideon_kanban_usuario', nome);
+                modalNome.classList.remove('active');
+                atualizarSaudacao();
+                renderizarQuadro();
+            }
+        }
+
+        botaoSalvarNome.addEventListener('click', salvarNomeUsuario);
+        entradaNomeModal.addEventListener('keydown', (e) => { if (e.key === 'Enter') salvarNomeUsuario(); });
+
+        elementoSaudacao.addEventListener('click', () => {
+            entradaNomeModal.value = bdLocal.usuario;
+            modalNome.classList.add('active');
+            entradaNomeModal.focus();
+        });
+
+        function atualizarSaudacao() {
+            const hora = new Date().getHours();
+            let saudacao = 'Boa noite 🌙';
+            if (hora >= 5 && hora < 12) saudacao = 'Bom dia ☀️';
+            else if (hora >= 12 && hora < 18) saudacao = 'Boa tarde ☀️';
+            elementoSaudacao.textContent = `Olá, ${bdLocal.usuario}! ${saudacao}`;
+        }
+
+        function salvarEAtualizar() {
+            localStorage.setItem('gideon_kanban_tarefas', JSON.stringify(bdLocal.tarefas));
+            atualizarMetricas();
+            renderizarHistorico();
+        }
+
+        function atualizarMetricas() {
+            const totalBacklog = bdLocal.tarefas.filter(t => t.status === 'backlog').length;
+            const totalProducao = bdLocal.tarefas.filter(t => t.status === 'producao').length;
+            const totalFinalizado = bdLocal.tarefas.filter(t => t.status === 'finalizado').length;
+            const totalArquivado = bdLocal.tarefas.filter(t => t.status === 'arquivado').length;
+
+            document.getElementById('count-backlog').textContent = totalBacklog;
+            document.getElementById('count-producao').textContent = totalProducao;
+            document.getElementById('count-finalizado').textContent = totalFinalizado;
+            contadorHistoricoBadge.textContent = totalArquivado;
+
+            if (totalProducao > LIMITE_PRODUCAO) {
+                colunaProducaoElemento.classList.add('limit-exceeded');
+            } else {
+                colunaProducaoElemento.classList.remove('limit-exceeded');
+            }
+
+            // Apenas tarefas ativas (não arquivadas) entram no cálculo do progresso do quadro principal
+            const totalAtivas = totalBacklog + totalProducao + totalFinalizado;
+            const porcentagem = totalAtivas > 0 ? Math.round((totalFinalizado / totalAtivas) * 100) : 0;
+            barraProgresso.style.width = `${porcentagem}%`;
+        }
+
+        function criarCardHTML(tarefa) {
+            const card = document.createElement('div');
+            card.classList.add('task-card');
+            card.setAttribute('draggable', 'true');
+            card.setAttribute('data-id', tarefa.id);
+            card.setAttribute('data-urgencia', tarefa.urgencia);
+            card.style.setProperty('--urgency-color', coresUrgencia[tarefa.urgencia]);
+
+            if (filtroAtivo !== 'todos' && tarefa.urgencia !== filtroAtivo) {
+                card.classList.add('filtered-out');
+            }
+
+            card.innerHTML = `
+                <h3>${escaparHTML(tarefa.titulo)}</h3>
+                <div class="task-card-footer">
+                    <span class="urgency-badge" style="color: var(--urgency-color)">${tarefa.urgencia}</span>
+                    <button class="btn-delete" title="Excluir tarefa">✕</button>
+                </div>
+            `;
+
+            card.addEventListener('dragstart', () => { setTimeout(() => card.classList.add('dragging'), 0); });
+            card.addEventListener('dragend', () => { card.classList.remove('dragging'); });
+            card.querySelector('.btn-delete').addEventListener('click', () => excluirTarefa(tarefa.id));
+
+            return card;
+        }
+
+        function renderizarQuadro() {
+            colunasContainers.forEach(c => c.innerHTML = '');
+            bdLocal.tarefas.forEach(tarefa => {
+                // Ignora tarefas arquivadas na listagem das colunas do Kanban
+                if (tarefa.status === 'arquivado') return;
+
+                const containerAlvo = document.querySelector(`.cards-container[data-status="${tarefa.status}"]`);
+                if (containerAlvo) containerAlvo.appendChild(criarCardHTML(tarefa));
+            });
+            atualizarMetricas();
+        }
+
+        function renderizarHistorico() {
+            listaHistorico.innerHTML = '';
+            const tarefasArquivadas = bdLocal.tarefas.filter(t => t.status === 'arquivado');
+
+            if (tarefasArquivadas.length === 0) {
+                listaHistorico.innerHTML = '<div class="history-empty-state">Nenhuma tarefa arquivada por enquanto.</div>';
+                return;
+            }
+
+            tarefasArquivadas.forEach(tarefa => {
+                const item = document.createElement('div');
+                item.classList.add('history-item');
+                item.style.setProperty('--urgency-color', coresUrgencia[tarefa.urgencia]);
+                
+                item.innerHTML = `
+                    <div class="history-item-info">
+                        <h4>${escaparHTML(tarefa.titulo)}</h4>
+                        <span style="color: var(--urgency-color)">${tarefa.urgencia}</span>
+                    </div>
+                    <button class="btn-delete" title="Excluir permanentemente">✕</button>
+                `;
+
+                item.querySelector('.btn-delete').addEventListener('click', () => excluirTarefa(tarefa.id));
+                listaHistorico.appendChild(item);
+            });
+        }
+
+        // Funções de abrir e fechar a gaveta do histórico
+        botaoAbrirHistorico.addEventListener('click', () => painelHistorico.classList.add('open'));
+        botaoFecharHistorico.addEventListener('click', () => painelHistorico.classList.remove('open'));
+
+        // Ação do Botão "Limpar e Arquivar"
+        botaoArquivarConcluidas.addEventListener('click', () => {
+            const concluidas = bdLocal.tarefas.filter(t => t.status === 'finalizado');
+            if (concluidas.length === 0) {
+                alert('Não há tarefas na coluna "Finalizado" para arquivar.');
+                return;
+            }
+
+            // Muda o status de todas as concluídas para arquivado
+            bdLocal.tarefas.forEach(tarefa => {
+                if (tarefa.status === 'finalizado') {
+                    tarefa.status = 'arquivado';
+                }
+            });
+
+            salvarEAtualizar();
+            renderizarQuadro();
+        });
+
+        formulario.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const novaTarefa = {
+                id: Date.now().toString(),
+                titulo: entradaTarefa.value.trim(),
+                urgencia: seletorUrgencia.value,
+                status: 'backlog'
+            };
+
+            bdLocal.tarefas.push(novaTarefa);
+            salvarEAtualizar();
+            
+            const containerAlvo = document.querySelector('.cards-container[data-status="backlog"]');
+            containerAlvo.appendChild(criarCardHTML(novaTarefa));
+
+            entradaTarefa.value = '';
+            entradaTarefa.focus();
+        });
+
+        colunasContainers.forEach(container => {
+            const colunaPai = container.closest('.kanban-column');
+
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                colunaPai.classList.add('drag-over');
+                
+                const cardSendoArrastado = document.querySelector('.dragging');
+                if (!cardSendoArrastado) return;
+                
+                const proximoCard = obterElementoPosicao(container, e.clientY);
+                if (proximoCard == null) container.appendChild(cardSendoArrastado);
+                else container.insertBefore(cardSendoArrastado, proximoCard);
+            });
+
+            container.addEventListener('dragleave', () => { colunaPai.classList.remove('drag-over'); });
+
+            container.addEventListener('drop', (e) => {
+                e.preventDefault();
+                colunaPai.classList.remove('drag-over');
+                
+                const cardSendoArrastado = document.querySelector('.dragging');
+                if (!cardSendoArrastado) return;
+
+                const idTarefa = cardSendoArrastado.getAttribute('data-id');
+                const novoStatus = container.getAttribute('data-status');
+                
+                const tarefaOriginal = bdLocal.tarefas.find(t => t.id === idTarefa);
+                if (!tarefaOriginal) return;
+
+                // TRAVA DE SEGURANÇA: Bloqueia mover de 'A Fazer' direto para 'Finalizado'
+                if (tarefaOriginal.status === 'backlog' && novoStatus === 'finalizado') {
+                    alert('⚠️ Fluxo incorreto! Você não pode pular etapas. A tarefa deve passar primeiro por "Em Produção".');
+                    renderizarQuadro();
+                    return;
+                }
+
+                // Validação de Limite da coluna Produção
+                if (novoStatus === 'producao' && tarefaOriginal.status !== 'producao') {
+                    const totalProducao = bdLocal.tarefas.filter(t => t.status === 'producao').length;
+                    if (totalProducao >= LIMITE_PRODUCAO) {
+                        alert(`⚠️ Alerta: O limite máximo de ${LIMITE_PRODUCAO} tarefas "Em Produção" foi atingido! Conclua um item antes.`);
+                        renderizarQuadro();
+                        return;
+                    }
+                }
+
+                // Atualiza o estado real do banco de dados
+                tarefaOriginal.status = novoStatus;
+                salvarEAtualizar();
+                
+                // Força a renderização limpa do quadro para evitar o bug de duplicar ou "voltar" de coluna
+                setTimeout(renderizarQuadro, 50);
+            });
+        });
+
+        function obterElementoPosicao(container, y) {
+            const cardsDisponiveis = [...container.querySelectorAll('.task-card:not(.dragging)')];
+            return cardsDisponiveis.reduce((maisProximo, filho) => {
+                const limites = filho.getBoundingClientRect();
+                const deslocamento = y - limites.top - limites.height / 2;
+                if (deslocamento < 0 && deslocamento > maisProximo.offset) return { offset: deslocamento, element: filho };
+                else return maisProximo;
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function excluirTarefa(id) {
+            bdLocal.tarefas = bdLocal.tarefas.filter(t => t.id !== id);
+            salvarEAtualizar();
+            
+            // Remove do Kanban (se estiver ativo)
+            const cardElemento = document.querySelector(`.task-card[data-id="${id}"]`);
+            if (cardElemento) {
+                cardElemento.style.transform = 'scale(0)';
+                cardElemento.style.opacity = '0';
+                setTimeout(() => cardElemento.remove(), 250);
+            }
+            
+            // Força a atualização visual do quadro e do histórico
+            renderizarQuadro();
+        }
+
+        botoesFiltro.forEach(botao => {
+            botao.addEventListener('click', () => {
+                botoesFiltro.forEach(b => b.classList.remove('active'));
+                botao.classList.add('active');
+                
+                filtroAtivo = botao.getAttribute('data-filter');
+                const todosCards = document.querySelectorAll('.task-card');
+
+                todosCards.forEach(card => {
+                    const urgCard = card.getAttribute('data-urgencia');
+                    if (filtroAtivo === 'todos' || urgCard === filtroAtivo) {
+                        card.classList.remove('filtered-out');
+                    } else {
+                        card.classList.add('filtered-out');
+                    }
+                });
+            });
+        });
+
+        function escaparHTML(texto) {
+            return texto.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        // Executar
+        inicializarTema();
+        gerenciarPerfil();
+        renderizarQuadro();
+        renderizarHistorico();
+    </script>
+</body>
+</html>
