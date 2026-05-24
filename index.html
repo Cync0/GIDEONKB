@@ -386,10 +386,23 @@
             cursor: grab;
             box-shadow: 0 4px 10px var(--shadow);
             transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.3s ease;
+            touch-action: none; /* Crucial para o funcionamento perfeito do touch no mobile */
+            user-select: none;
         }
         .task-card:active { cursor: grabbing; }
         .task-card.dragging { opacity: 0.3; transform: scale(0.96); }
         .task-card.filtered-out { display: none; }
+
+        /* Estilo do card clonado flutuante no celular */
+        .task-card.touch-cloned {
+            position: fixed !important;
+            z-index: 10000 !important;
+            pointer-events: none !important;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6) !important;
+            transform: scale(1.05) !important;
+            opacity: 0.9 !important;
+            width: 280px !important;
+        }
 
         .task-card h3 {
             font-size: 15px;
@@ -556,9 +569,13 @@
         }
 
         @media (max-width: 1024px) {
-            .kanban-container { grid-template-columns: 1fr; }
-            .controls-row { flex-direction: column; align-items: stretch; }
+            .kanban-container { grid-template-columns: 1fr; gap: 20px; padding: 15px; }
+            header { padding: 15px 20px; }
             .history-drawer { width: 100%; right: -100%; }
+            .controls-row { flex-direction: column; align-items: stretch; }
+            .task-form { flex-direction: column; max-width: 100%; }
+            .filter-group { justify-content: center; width: 100%; }
+            .filter-btn { flex: 1; text-align: center; }
         }
     </style>
 </head>
@@ -657,7 +674,7 @@
     <footer>
         <div class="team-badge">
             ADRIAN <span class="footer-divider">|</span> ESTELITA <span class="footer-divider">|</span> RAIMUNDO <span class="footer-divider">|</span> FABIO <span class="footer-divider">|</span> RAFAELLA 
-            <span class="footer-divider">|</span> <strong>TÉC. INFORMÁTICA 2026</strong> <span class="footer-divider">|</span> EETEPA VILHENA ALVES
+            <span class="footer-divider">|</span> <strong>P1 INFORMÁTICA 2026</strong> <span class="footer-divider">|</span> EETEPA VILHENA ALVES
             <br>
             <span class="footer-highlight">GESTÃO APLICADA</span> — PROF. ALBERTO GAMA
         </div>
@@ -687,6 +704,11 @@
 
         const LIMITE_PRODUCAO = 4;
         let filtroAtivo = 'todos';
+
+        // Variáveis globais para rastreamento de Touch (Mobile)
+        let cardClonadoMobile = null;
+        let cardOriginalMobile = null;
+        let containerOrigemMobile = null;
 
         const formulario = document.getElementById('taskForm');
         const entradaTarefa = document.getElementById('taskInput');
@@ -782,7 +804,6 @@
                 colunaProducaoElemento.classList.remove('limit-exceeded');
             }
 
-            // Apenas tarefas ativas (não arquivadas) entram no cálculo do progresso do quadro principal
             const totalAtivas = totalBacklog + totalProducao + totalFinalizado;
             const porcentagem = totalAtivas > 0 ? Math.round((totalFinalizado / totalAtivas) * 100) : 0;
             barraProgresso.style.width = `${porcentagem}%`;
@@ -808,17 +829,112 @@
                 </div>
             `;
 
+            // EVENTOS DESKTOP (Mouse)
             card.addEventListener('dragstart', () => { setTimeout(() => card.classList.add('dragging'), 0); });
             card.addEventListener('dragend', () => { card.classList.remove('dragging'); });
-            card.querySelector('.btn-delete').addEventListener('click', () => excluirTarefa(tarefa.id));
+            card.querySelector('.btn-delete').addEventListener('click', (e) => {
+                e.stopPropagation();
+                excluirTarefa(tarefa.id);
+            });
+
+            // EVENTOS MOBILE (Toque de tela)
+            card.addEventListener('touchstart', (e) => {
+                // Impede o disparo duplo caso toque no botão de deletar
+                if (e.target.classList.contains('btn-delete')) return;
+
+                cardOriginalMobile = card;
+                containerOrigemMobile = card.closest('.cards-container');
+                cardOriginalMobile.classList.add('dragging');
+
+                // Cria um clone perfeito para seguir o dedo pela tela
+                cardClonadoMobile = card.cloneNode(true);
+                cardClonadoMobile.classList.add('touch-cloned');
+                document.body.appendChild(cardClonadoMobile);
+
+                posicionarCardCloneTouch(e.touches[0]);
+            }, { passive: true });
+
+            card.addEventListener('touchmove', (e) => {
+                if (!cardClonadoMobile) return;
+                
+                // Impede a tela de rolar enquanto arrasta o item no mobile
+                if (e.cancelable) e.preventDefault();
+                
+                posicionarCardCloneTouch(e.touches[0]);
+
+                // Feedback visual de dragover nas colunas no mobile
+                const elementoSobODedo = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+                const containerAlvoMobile = elementoSobODedo ? elementoSobODedo.closest('.cards-container') : null;
+
+                document.querySelectorAll('.kanban-column').forEach(col => col.classList.remove('drag-over'));
+                if (containerAlvoMobile) {
+                    containerAlvoMobile.closest('.kanban-column').classList.add('drag-over');
+                }
+            }, { passive: false });
+
+            card.addEventListener('touchend', (e) => {
+                if (!cardClonadoMobile) return;
+
+                const toqueFinal = e.changedTouches[0];
+                const elementoSobODedo = document.elementFromPoint(toqueFinal.clientX, toqueFinal.clientY);
+                const containerAlvoMobile = elementoSobODedo ? elementoSobODedo.closest('.cards-container') : null;
+
+                // Limpa os estados visuais temporários
+                document.querySelectorAll('.kanban-column').forEach(col => col.classList.remove('drag-over'));
+                cardClonadoMobile.remove();
+                cardClonadoMobile = null;
+                cardOriginalMobile.classList.remove('dragging');
+
+                if (containerAlvoMobile) {
+                    const idTarefa = cardOriginalMobile.getAttribute('data-id');
+                    const novoStatus = containerAlvoMobile.getAttribute('data-status');
+                    processarMudancaStatus(idTarefa, novoStatus);
+                } else {
+                    renderizarQuadro(); // Reseta caso solte fora de um container válido
+                }
+            });
 
             return card;
+        }
+
+        function posicionarCardCloneTouch(toque) {
+            if (!cardClonadoMobile) return;
+            // Centraliza o clone ligeiramente acima do dedo do usuário para não tampar a visão
+            cardClonadoMobile.style.left = `${toque.clientX - 140}px`;
+            cardClonadoMobile.style.top = `${toque.clientY - 40}px`;
+        }
+
+        function processarMudancaStatus(idTarefa, novoStatus) {
+            const tarefaOriginal = bdLocal.tarefas.find(t => t.id === idTarefa);
+            if (!tarefaOriginal) return;
+
+            // TRAVA DE SEGURANÇA: Bloqueia mover de 'A Fazer' direto para 'Finalizado'
+            if (tarefaOriginal.status === 'backlog' && novoStatus === 'finalizado') {
+                alert('⚠️ Fluxo incorreto! Você não pode pular etapas. A tarefa deve passar primeiro por "Em Produção".');
+                renderizarQuadro();
+                return;
+            }
+
+            // Validação de Limite da coluna Produção
+            if (novoStatus === 'producao' && tarefaOriginal.status !== 'producao') {
+                const totalProducao = bdLocal.tarefas.filter(t => t.status === 'producao').length;
+                if (totalProducao >= LIMITE_PRODUCAO) {
+                    alert(`⚠️ Alerta: O limite máximo de ${LIMITE_PRODUCAO} tarefas "Em Produção" foi atingido! Conclua um item antes.`);
+                    renderizarQuadro();
+                    return;
+                }
+            }
+
+            // Atualiza e salva as modificações
+            tarefaOriginal.status = novoStatus;
+            salvarEAtualizar();
+            
+            setTimeout(renderizarQuadro, 50);
         }
 
         function renderizarQuadro() {
             colunasContainers.forEach(c => c.innerHTML = '');
             bdLocal.tarefas.forEach(tarefa => {
-                // Ignora tarefas arquivadas na listagem das colunas do Kanban
                 if (tarefa.status === 'arquivado') return;
 
                 const containerAlvo = document.querySelector(`.cards-container[data-status="${tarefa.status}"]`);
@@ -854,11 +970,9 @@
             });
         }
 
-        // Funções de abrir e fechar a gaveta do histórico
         botaoAbrirHistorico.addEventListener('click', () => painelHistorico.classList.add('open'));
         botaoFecharHistorico.addEventListener('click', () => painelHistorico.classList.remove('open'));
 
-        // Ação do Botão "Limpar e Arquivar"
         botaoArquivarConcluidas.addEventListener('click', () => {
             const concluidas = bdLocal.tarefas.filter(t => t.status === 'finalizado');
             if (concluidas.length === 0) {
@@ -866,7 +980,6 @@
                 return;
             }
 
-            // Muda o status de todas as concluídas para arquivado
             bdLocal.tarefas.forEach(tarefa => {
                 if (tarefa.status === 'finalizado') {
                     tarefa.status = 'arquivado';
@@ -897,6 +1010,7 @@
             entradaTarefa.focus();
         });
 
+        // Configuração nativa de Desktop para Drag and Drop
         colunasContainers.forEach(container => {
             const colunaPai = container.closest('.kanban-column');
 
@@ -924,32 +1038,7 @@
                 const idTarefa = cardSendoArrastado.getAttribute('data-id');
                 const novoStatus = container.getAttribute('data-status');
                 
-                const tarefaOriginal = bdLocal.tarefas.find(t => t.id === idTarefa);
-                if (!tarefaOriginal) return;
-
-                // TRAVA DE SEGURANÇA: Bloqueia mover de 'A Fazer' direto para 'Finalizado'
-                if (tarefaOriginal.status === 'backlog' && novoStatus === 'finalizado') {
-                    alert('⚠️ Fluxo incorreto! Você não pode pular etapas. A tarefa deve passar primeiro por "Em Produção".');
-                    renderizarQuadro();
-                    return;
-                }
-
-                // Validação de Limite da coluna Produção
-                if (novoStatus === 'producao' && tarefaOriginal.status !== 'producao') {
-                    const totalProducao = bdLocal.tarefas.filter(t => t.status === 'producao').length;
-                    if (totalProducao >= LIMITE_PRODUCAO) {
-                        alert(`⚠️ Alerta: O limite máximo de ${LIMITE_PRODUCAO} tarefas "Em Produção" foi atingido! Conclua um item antes.`);
-                        renderizarQuadro();
-                        return;
-                    }
-                }
-
-                // Atualiza o estado real do banco de dados
-                tarefaOriginal.status = novoStatus;
-                salvarEAtualizar();
-                
-                // Força a renderização limpa do quadro para evitar o bug de duplicar ou "voltar" de coluna
-                setTimeout(renderizarQuadro, 50);
+                processarMudancaStatus(idTarefa, novoStatus);
             });
         });
 
@@ -967,7 +1056,6 @@
             bdLocal.tarefas = bdLocal.tarefas.filter(t => t.id !== id);
             salvarEAtualizar();
             
-            // Remove do Kanban (se estiver ativo)
             const cardElemento = document.querySelector(`.task-card[data-id="${id}"]`);
             if (cardElemento) {
                 cardElemento.style.transform = 'scale(0)';
@@ -975,7 +1063,6 @@
                 setTimeout(() => cardElemento.remove(), 250);
             }
             
-            // Força a atualização visual do quadro e do histórico
             renderizarQuadro();
         }
 
