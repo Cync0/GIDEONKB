@@ -517,10 +517,6 @@
             z-index: 4000;
             transition: var(--transition);
         }
-        .feedback-trigger-btn:hover {
-            transform: translateY(-3px) scale(1.05);
-            box-shadow: 0 8px 25px rgba(0, 240, 255, 0.6);
-        }
 
         /* Painel/Janela de Feedback */
         .feedback-modal {
@@ -602,6 +598,7 @@
             border-top: 1px solid var(--border-color);
             margin-bottom: 0;
         }
+
         .team-badge {
             font-size: 11px;
             letter-spacing: 0.8px;
@@ -633,6 +630,7 @@
             transition: opacity 0.3s ease;
         }
         .modal.active { opacity: 1; pointer-events: auto; }
+
         .modal-content {
             background: var(--bg-canvas);
             padding: 30px;
@@ -674,7 +672,7 @@
             .filter-btn { flex: 1; text-align: center; }
             .feedback-trigger-btn { bottom: 15px; right: 15px; padding: 10px 16px; font-size: 12px; }
             .feedback-modal { bottom: 70px; right: 15px; width: calc(100% - 30px); }
-            footer { padding-bottom: 80px; } /* Abre espaço para o botão flutuante no mobile */
+            footer { padding-bottom: 80px; }
         }
     </style>
 </head>
@@ -759,18 +757,14 @@
         </div>
     </main>
 
-    <!-- Painel Lateral de Histórico -->
     <div class="history-drawer" id="historyDrawer">
         <div class="history-header">
             <h2>Histórico de Tarefas</h2>
             <button class="btn-close-history" id="closeHistoryBtn">✕</button>
         </div>
-        <div class="history-list" id="historyList">
-            <!-- Inserido dinamicamente via JS -->
-        </div>
+        <div class="history-list" id="historyList"></div>
     </div>
 
-    <!-- Interface Dinâmica de Feedback -->
     <button class="feedback-trigger-btn" id="openFeedbackBtn">💬 Feedback</button>
     
     <div class="feedback-modal" id="feedbackModal">
@@ -779,7 +773,6 @@
             <button id="closeFeedbackBtn">✕</button>
         </div>
         <div class="feedback-body">
-            <!-- Form modificado para interceptação dinâmica via JS via protocolo mailto: -->
             <form id="feedbackForm">
                 <div>
                     <label for="feedbackName">Seu Nome</label>
@@ -797,7 +790,8 @@
     <footer>
         <div class="team-badge">
             ADRIAN <span class="footer-divider">|</span> ESTELITA <span class="footer-divider">|</span> RAIMUNDO <span class="footer-divider">|</span> FABIO <span class="footer-divider">|</span> RAFAELLA 
-            <span class="footer-divider">|</span> <strong>TÉC. EM INFORMÁTICA 2026</strong> <span class="footer-divider">|</span> EETEPA VILHENA ALVES
+            <br>
+            <span class="footer-highlight">EETEPA VILHENA ALVES</span> — TÉC. EM INFORMÁTICA
             <br>
             <span class="footer-highlight">GESTÃO APLICADA</span> — PROF. ALBERTO GAMA
         </div>
@@ -845,7 +839,6 @@
         const colunaProducaoElemento = document.getElementById('col-producao');
         const botaoTema = document.getElementById('themeToggle');
         
-        // Elementos do Histórico
         const painelHistorico = document.getElementById('historyDrawer');
         const botaoAbrirHistorico = document.getElementById('openHistoryBtn');
         const botaoFecharHistorico = document.getElementById('closeHistoryBtn');
@@ -853,7 +846,6 @@
         const contadorHistoricoBadge = document.getElementById('historyCount');
         const botaoArquivarConcluidas = document.getElementById('archiveDoneBtn');
 
-        // Elementos de Feedback
         const painelFeedback = document.getElementById('feedbackModal');
         const botaoAbrirFeedback = document.getElementById('openFeedbackBtn');
         const botaoFecharFeedback = document.getElementById('closeFeedbackBtn');
@@ -891,6 +883,9 @@
                 modalNome.classList.remove('active');
                 atualizarSaudacao();
                 renderizarQuadro();
+            } else {
+                alert('Por favor, insira um nome válido para acessar o painel.');
+                entradaNomeModal.focus();
             }
         }
 
@@ -914,7 +909,6 @@
         function salvarEAtualizar() {
             localStorage.setItem('gideon_kanban_tarefas', JSON.stringify(bdLocal.tarefas));
             atualizarMetricas();
-            renderizarHistorico();
         }
 
         function atualizarMetricas() {
@@ -961,11 +955,13 @@
 
             card.addEventListener('dragstart', () => { setTimeout(() => card.classList.add('dragging'), 0); });
             card.addEventListener('dragend', () => { card.classList.remove('dragging'); });
+            
             card.querySelector('.btn-delete').addEventListener('click', (e) => {
                 e.stopPropagation();
                 excluirTarefa(tarefa.id);
             });
 
+            // Suporte Touch Mobile Otimizado
             card.addEventListener('touchstart', (e) => {
                 if (e.target.classList.contains('btn-delete')) return;
 
@@ -1046,7 +1042,10 @@
 
             tarefaOriginal.status = novoStatus;
             salvarEAtualizar();
-            setTimeout(renderizarQuadro, 50);
+            renderizarQuadro();
+            if (painelHistorico.classList.contains('open')) {
+                renderizarHistorico();
+            }
         }
 
         function renderizarQuadro() {
@@ -1087,24 +1086,22 @@
             });
         }
 
-        // Lógica de abertura das gavetas laterais / modais
         botaoAbrirHistorico.addEventListener('click', () => {
             painelFeedback.classList.remove('open');
             painelHistorico.classList.add('open');
+            renderizarHistorico();
         });
         botaoFecharHistorico.addEventListener('click', () => painelHistorico.classList.remove('open'));
 
-        // Lógica do Painel de Feedback
         botaoAbrirFeedback.addEventListener('click', () => {
             painelHistorico.classList.remove('open');
             painelFeedback.classList.toggle('open');
             if (painelFeedback.classList.contains('open') && bdLocal.usuario) {
-                campoNomeFeedback.value = bdLocal.usuario; // Auto-preenche com o nome do usuário logado
+                campoNomeFeedback.value = bdLocal.usuario;
             }
         });
         botaoFecharFeedback.addEventListener('click', () => painelFeedback.classList.remove('open'));
 
-        // INTERCEPTAÇÃO DO FEEDBACK VIA MAILTO NATIVO (Direto para o e-mail sem precisar de DB)
         formularioFeedback.addEventListener('submit', (e) => {
             e.preventDefault();
             
@@ -1120,10 +1117,8 @@
                 `Enviado direto do Painel de Controle.`
             );
             
-            // Monta o link mailto dinâmico e simula o clique do usuário
             window.location.href = `mailto:${destinatario}?subject=${assunto}&body=${corpoEmail}`;
             
-            // Mensagem de sucesso na tela e limpa campos
             alert('Perfeito! Seu aplicativo de e-mail padrão será aberto para confirmar o envio da opinião para o Adrian.');
             campoTextoFeedback.value = '';
             painelFeedback.classList.remove('open');
@@ -1144,6 +1139,7 @@
 
             salvarEAtualizar();
             renderizarQuadro();
+            renderizarHistorico();
         });
 
         formulario.addEventListener('submit', (e) => {
@@ -1158,9 +1154,7 @@
 
             bdLocal.tarefas.push(novaTarefa);
             salvarEAtualizar();
-            
-            const containerAlvo = document.querySelector('.cards-container[data-status="backlog"]');
-            containerAlvo.appendChild(criarCardHTML(novaTarefa));
+            renderizarQuadro();
 
             entradaTarefa.value = '';
             entradaTarefa.focus();
@@ -1200,7 +1194,7 @@
         function obterElementoPosicao(container, y) {
             const cardsDisponiveis = [...container.querySelectorAll('.task-card:not(.dragging)')];
             return cardsDisponiveis.reduce((maisProximo, filho) => {
-                const limites = filho.getBoundingClientRect();
+                const limites = childBounds = filho.getBoundingClientRect();
                 const deslocamento = y - limites.top - limites.height / 2;
                 if (deslocamento < 0 && deslocamento > maisProximo.offset) return { offset: deslocamento, element: filho };
                 else return maisProximo;
@@ -1215,10 +1209,15 @@
             if (cardElemento) {
                 cardElemento.style.transform = 'scale(0)';
                 cardElemento.style.opacity = '0';
-                setTimeout(() => cardElemento.remove(), 250);
+                setTimeout(() => {
+                    cardElemento.remove();
+                    renderizarQuadro();
+                    renderizarHistorico();
+                }, 250);
+            } else {
+                renderizarQuadro();
+                renderizarHistorico();
             }
-            
-            renderizarQuadro();
         }
 
         botoesFiltro.forEach(botao => {
@@ -1250,7 +1249,6 @@
         inicializarTema();
         gerenciarPerfil();
         renderizarQuadro();
-        renderizarHistorico();
     </script>
 </body>
 </html>
